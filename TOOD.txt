@@ -1,0 +1,7 @@
+Once you've finished setting up your [actual git repo] <-> [deploy target repo]
+architecture, inject a bunch of environment or config variables (probably
+autogen some kind of config.js or env.js or gen.js file. ew not config.js
+though) including GIT_COMMIT, VERSION, DOCKER_IMAGE_DIGEST, etc. And maybe
+include GIT_COMMIT in the stdout logs (including keepalive logs too prob?)
+
+Pass long request information (headers, IP addr, start time, etc) as env vars

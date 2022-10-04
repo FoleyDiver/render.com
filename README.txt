@@ -1,0 +1,2 @@
+ENV=santa
+CREDENTIALS=redacted

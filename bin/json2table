@@ -1,0 +1,117 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+import json
+import decimal
+import fileinput
+import argparse
+from types import SimpleNamespace as namespace
+
+def alignment (c):
+    a = {
+        "+": ">",
+        "-": "<",
+        "=": "^",
+    }.get(c)
+    if not a:
+        raise ValueError(f"Invalid alignment char: {c}")
+    return a
+
+def alignment_pair (s):
+    key, delim, char = s.partition("=")
+    if not (key and delim):
+        raise ValueError(f"Invalid alignment specified: {s}")
+    return (key, alignment(char))
+
+def title (s):
+    key, delim, title = s.partition("=")
+    if not (key and delim):
+        raise argparse.ArgumentError
+    return (key, title)
+
+parser = argparse.ArgumentParser(description="yeet!")
+parser.add_argument(
+    "-s", "--sep",
+    default="  ",
+    help="Column separator. Default: two spaces",
+)
+parser.add_argument(
+    "-d", "--default",
+    default="",
+    help="Default value. Default: empty string",
+)
+parser.add_argument(
+    "-w", "--whole",
+    default="-",
+    type=alignment,
+    help="Align whole table left (-), right (+), or center (=). Default: left (-)",
+)
+parser.add_argument(
+    "-a", "--align",
+    action="append",
+    default=[],
+    type=alignment_pair,
+    help="Align column left (-), right (+), or center (=)",
+)
+parser.add_argument(
+    "-t", "--title",
+    action="append",
+    default=[],
+    type=title,
+    help="Use different column title",
+)
+parser.add_argument(
+    "files",
+    nargs="*",
+)
+
+def main (arg0, argv):
+    args = parser.parse_args(argv)
+    args.align = dict(args.align)
+    args.title = dict(args.title)
+
+    columns = dict()
+    rows = []
+
+    for obj_json in fileinput.input(args.files):
+        obj = json.loads(obj_json, parse_int=decimal.Decimal, parse_float=decimal.Decimal)
+        row = []
+        for key, column in columns.items():
+            item = str(obj.pop(key, args.default))
+            column.width = max(column.width, len(item))
+            row.append(item)
+        for key, item in obj.items():
+            title = args.title.get(key, key)
+            column = columns[key] = namespace(
+                title=title,
+                width=len(title),
+                alignment=args.align.get(key, args.whole),
+                title_alignment="^",
+            )
+            for old_row in rows:
+                old_item = str(args.default)
+                column.width = max(column.width, len(old_item))
+                old_row.append(old_item)
+            item = str(item)
+            column.width = max(column.width, len(item))
+            row.append(item)
+        rows.append(row)
+
+    if not columns:
+        return
+
+    print(args.sep.join(f"{column.title:{column.title_alignment}{column.width}}" for column in columns.values()))
+    for row in rows:
+        print(args.sep.join(f"{item:{column.alignment}{column.width}}" for column, item in zip(columns.values(), row)))
+
+if __name__ == "__main__":
+    try:
+        c = main(sys.argv[0], sys.argv[1:])
+    except KeyboardInterrupt:
+        c = 1
+    except BrokenPipeError:
+        sys.stderr.close()
+        c = 0
+    if c:
+        sys.exit(c)
